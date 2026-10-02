@@ -1332,6 +1332,64 @@
       .sidebar-caption { margin-top: 18px; }
       .login-brand, .login-form-wrap { padding-top: 30px; padding-bottom: 30px; }
     }
+  
+    /* ===== Ajustes responsivos + instalação PWA ===== */
+    .mobile-only { display:none; }
+    .sidebar-close {
+      position:absolute; top:12px; right:12px; width:36px; height:36px;
+      border:0; border-radius:10px; color:#aaa6b5; background:rgba(255,255,255,.07);
+      z-index:3;
+    }
+    .sidebar-close:hover { color:#fff; background:rgba(255,255,255,.12); }
+    .install-prompt {
+      position:fixed; right:max(18px, env(safe-area-inset-right));
+      bottom:max(18px, env(safe-area-inset-bottom)); z-index:180;
+      width:min(410px, calc(100vw - 28px)); display:grid;
+      grid-template-columns:44px minmax(0,1fr) auto; align-items:center; gap:12px;
+      padding:14px 42px 14px 14px; border:1px solid rgba(255,255,255,.75);
+      border-radius:18px; background:rgba(33,31,47,.97); color:#fff;
+      box-shadow:0 22px 60px rgba(20,16,34,.28); backdrop-filter:blur(18px);
+      animation:installIn .22s ease;
+    }
+    .install-prompt-icon { width:44px;height:44px;display:grid;place-items:center;border-radius:13px;color:var(--ink);background:var(--lime);font-size:19px; }
+    .install-prompt-copy strong,.install-prompt-copy span {display:block}.install-prompt-copy strong{font-size:12px}.install-prompt-copy span{margin-top:4px;color:#c7c4cf;font-size:10px;line-height:1.4}
+    .install-prompt-close { position:absolute; right:8px; top:8px; width:28px;height:28px;border:0;border-radius:50%;color:#aaa6b5;background:transparent; }
+    .install-prompt-close:hover {color:#fff;background:rgba(255,255,255,.1)}
+    @keyframes installIn { from { opacity:0; transform:translateY(12px); } }
+    @media (max-width:900px) {
+      .mobile-only { display:grid; place-items:center; }
+      .sidebar { padding-top:54px; }
+      .topbar { gap:10px; }
+      .global-search { min-width:0; }
+      .global-search input { min-width:0; }
+      .main { overscroll-behavior-y:contain; }
+    }
+    @media (max-width:720px) {
+      .install-prompt { grid-template-columns:40px minmax(0,1fr); }
+      .install-prompt .btn { grid-column:1/-1; width:100%; }
+      .install-prompt-icon { width:40px;height:40px; }
+      .page-head { margin-bottom:16px; }
+      .head-actions { display:grid; grid-template-columns:1fr; }
+      .head-actions .btn { width:100%; }
+      .toolbar { align-items:stretch; }
+      .toolbar-search { min-width:100%; }
+      .toolbar select { flex:1; min-width:0; }
+      .kanban { margin-inline:-2px; padding-inline:2px 8px; }
+      .modal-body { -webkit-overflow-scrolling:touch; }
+      .modal-foot { position:sticky; bottom:0; }
+    }
+    @media (max-width:520px) {
+      .topbar { padding-inline:10px; }
+      .mobile-menu,.top-icon { width:38px;height:38px; }
+      .global-search input { min-height:38px; }
+      .main { padding-inline:10px; }
+      .metric-grid { gap:8px; }
+      .metric-card { min-height:112px; padding:12px; }
+      .metric-icon { width:28px;height:28px; }
+      .panel { border-radius:15px; }
+      .install-prompt { right:8px; bottom:max(8px, env(safe-area-inset-bottom)); width:calc(100vw - 16px); }
+    }
+
   </style>
 </head>
 <body>
@@ -1380,6 +1438,7 @@
 
   <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar" id="sidebar">
+      <button class="sidebar-close mobile-only" id="sidebarClose" type="button" aria-label="Fechar menu"><i class="bi bi-x-lg"></i></button>
       <div class="brand"><span class="brand-mark">N</span><span>Tech Solutions CRM</span></div>
       <p class="sidebar-caption">Espaço de trabalho</p>
       <nav class="nav-list" aria-label="Navegação principal">
@@ -1392,9 +1451,9 @@
         <button class="nav-btn" data-view="sellers"><i class="bi bi-bar-chart"></i><span>Vendedores</span></button>
       </nav>
       <div class="sidebar-bottom">
-        <div class="install-card">
-          <strong>Instale o Tech Solutions CRM</strong>
-          <span>Acesse como um app pelo celular ou computador.</span>
+        <div class="install-card" id="sidebarInstallCard">
+          <strong>Tech Solutions como app</strong>
+          <span>Instale para abrir mais rápido.</span>
           <button class="btn btn-sm" id="installButton" type="button"><i class="bi bi-download"></i> Instalar</button>
         </div>
         <div class="user-card">
@@ -1421,6 +1480,13 @@
     <div class="drawer-overlay" id="drawerOverlay" hidden></div>
   </div>
 
+  <div class="install-prompt" id="installPrompt" hidden role="dialog" aria-label="Instalar Tech Solutions CRM">
+    <button class="install-prompt-close" id="installPromptClose" type="button" aria-label="Fechar aviso"><i class="bi bi-x-lg"></i></button>
+    <div class="install-prompt-icon"><i class="bi bi-phone"></i></div>
+    <div class="install-prompt-copy"><strong>Instale o Tech Solutions CRM</strong><span>Tenha acesso rápido pelo celular ou computador.</span></div>
+    <button class="btn btn-lime btn-sm" id="installPromptButton" type="button"><i class="bi bi-download"></i> Instalar</button>
+  </div>
+
   <div id="modalRoot"></div>
   <div class="toast-root" id="toastRoot" aria-live="polite"></div>
   <div class="loading-layer" id="loadingLayer" hidden>
@@ -1432,7 +1498,7 @@
      * Cole aqui a URL que termina em /exec depois de implantar o Code.gs
      * como App da Web no Google Apps Script.
      */
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzY4ONMmvKfWi2p3XoxZZOVK3_C7mk--0gQRaLm_Gk/dev';
+    const APPS_SCRIPT_URL = 'COLE_AQUI_A_URL_DO_SEU_WEB_APP_/exec';
 
     const STAGES = ['Novo', 'Contatado', 'Proposta', 'Negociação', 'Ganho'];
     const ALL_STAGES = [...STAGES, 'Perdido'];
@@ -1478,6 +1544,8 @@
       search: '',
       filter: 'Todos',
       deferredInstall: null,
+      tenant: null,
+      installDismissed: localStorage.getItem('ts_install_dismissed') === '1',
       demo: DEMO_MODE
     };
 
@@ -1625,6 +1693,7 @@
       const data = await api('bootstrap');
       Object.assign(state, {
         user: data.user || state.user,
+        tenant: data.tenant || state.tenant,
         settings: { ...state.settings, ...(data.settings || {}) },
         contacts: data.contacts || [],
         opportunities: data.opportunities || [],
@@ -1657,7 +1726,7 @@
       el.shell.hidden = false;
       const name = state.user?.name || 'Usuário';
       $('#sidebarUser').textContent = name;
-      $('#sidebarRole').textContent = state.user?.role === 'admin' ? 'Administrador' : 'Vendedor';
+      $('#sidebarRole').textContent = state.tenant?.name ? `${state.tenant.name} · ${state.user?.role === 'admin' ? 'Administrador' : 'Vendedor'}` : (state.user?.role === 'admin' ? 'Administrador' : 'Vendedor');
       $('#sidebarAvatar').textContent = initials(name);
       $('#topAvatar').textContent = initials(name);
       const hour = new Date().getHours();
@@ -2078,7 +2147,7 @@
           <div class="field span-2"><label>Responsável</label><select name="owner">${sellerOptions(item.owner || state.user.name)}</select></div>
           <div class="field span-2"><label>Notas</label><textarea name="notes" placeholder="Contexto, preferências, próximos passos…">${esc(item.notes)}</textarea></div>
         </div>`,
-        form => mutate('saveContact', { data: { id: item.id, ...formObject(form) } }, item.id ? 'Contato actualizado' : 'Contato creado')
+        form => mutate('saveContact', { data: { id: item.id, ...formObject(form) } }, item.id ? 'Contato atualizado' : 'Contato criado')
       );
     }
 
@@ -2098,7 +2167,7 @@
         form => {
           const data = formObject(form);
           data.value = toNumber(data.value); data.probability = toNumber(data.probability);
-          return mutate('saveOpportunity', { data: { id: item.id, ...data } }, item.id ? 'Oportunidade actualizada' : 'Oportunidade creada');
+          return mutate('saveOpportunity', { data: { id: item.id, ...data } }, item.id ? 'Oportunidade atualizada' : 'Oportunidade criada');
         }
       );
     }
@@ -2255,7 +2324,7 @@
       state.filter = 'Todos';
       closeDrawer();
       render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      el.main.scrollTo({ top: 0, behavior: 'smooth' });
     }
     function openDrawer() { el.shell.classList.add('drawer-open'); el.overlay.hidden = false; }
     function closeDrawer() { el.shell.classList.remove('drawer-open'); el.overlay.hidden = true; }
@@ -2274,6 +2343,7 @@
       $$('.nav-btn').forEach(button => button.addEventListener('click', () => openView(button.dataset.view)));
       $('#logoutButton').addEventListener('click', () => logout(true));
       $('#menuButton').addEventListener('click', openDrawer);
+      $('#sidebarClose')?.addEventListener('click', closeDrawer);
       el.overlay.addEventListener('click', closeDrawer);
       $('#alertButton').addEventListener('click', () => { openView('pipeline'); state.filter = 'Todos'; });
       $('#globalSearch').addEventListener('input', debounce(event => {
@@ -2305,15 +2375,20 @@
       window.addEventListener('beforeinstallprompt', event => {
         event.preventDefault();
         state.deferredInstall = event;
+        maybeShowInstallPrompt();
       });
       $('#installButton').addEventListener('click', installApp);
+      $('#installPromptButton').addEventListener('click', installApp);
+      $('#installPromptClose').addEventListener('click', dismissInstallPrompt);
+      window.addEventListener('appinstalled', dismissInstallPrompt);
     }
 
     async function installApp() {
       if (state.deferredInstall) {
         state.deferredInstall.prompt();
-        await state.deferredInstall.userChoice;
+        const choice = await state.deferredInstall.userChoice;
         state.deferredInstall = null;
+        if (choice && choice.outcome === 'accepted') dismissInstallPrompt();
         return;
       }
       const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -2321,6 +2396,22 @@
         ios ? 'Instalar no iPhone ou iPad' : 'Instalar o Tech Solutions CRM',
         ios ? 'No Safari: Compartilhar → Adicionar à Tela de Início.' : 'No menu do navegador, escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.'
       );
+    }
+
+    function dismissInstallPrompt() {
+      state.installDismissed = true;
+      localStorage.setItem('ts_install_dismissed', '1');
+      $('#installPrompt').hidden = true;
+    }
+
+    function isStandalone() {
+      return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    }
+
+    function maybeShowInstallPrompt() {
+      const prompt = $('#installPrompt');
+      if (!prompt || state.installDismissed || isStandalone()) return;
+      if (state.deferredInstall || /iphone|ipad|ipod/i.test(navigator.userAgent)) prompt.hidden = false;
     }
 
     function installMetadata() {
@@ -2467,6 +2558,7 @@
     async function init() {
       installMetadata();
       bindGlobalEvents();
+      setTimeout(maybeShowInstallPrompt, 1200);
       el.demoButton.hidden = !DEMO_MODE;
       if (DEMO_MODE) {
         $('#loginEmail').value = 'demo@nexo.local';
